@@ -17,6 +17,10 @@ import ru.nsu.internship.repository.VarTypeRepository;
 import ru.nsu.internship.service.sender.MessageSender;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Service
 @Qualifier("templateService")
@@ -80,13 +84,45 @@ public class MyTemplateService implements TemplateService {
     }
 
     @Override
-    public void addRecipient(String templateId, String recipient) {
-
+    public TemplateParameters getTemplate(String templateId) {
+        Template template = templateRepository.findById(templateId).orElseThrow(NullPointerException::new);
+        TemplateParameters templateParameters = new TemplateParameters();
+        List<String> recipients = new ArrayList<>();
+        template.getRecipients().forEach(e -> {
+            recipients.add(e.getUrl());
+        });
+        Map<String, String> types = new HashMap<>();
+        template.getVarTypes().forEach(e -> {
+            types.put(e.getName(), e.getType());
+        });
+        templateParameters.setTemplateId(templateId);
+        templateParameters.setTemplate(template.getTemplate());
+        templateParameters.setRecipients(recipients);
+        templateParameters.setVarTypes(types);
+        return templateParameters;
     }
 
     @Override
-    public void deleteRecipient(String templateId, String recipient) {
+    @Transactional
+    public String addRecipient(String templateId, String url) {
+        //Template template = templateRepository.findById(templateId).orElseThrow(NullPointerException::new);
+        if (!(recipientRepository.getFirstByTemplateIdAndUrl(templateId, url) == null)){
+            return null;
+        } else {
+            recipientRepository.insertByTemplateIdAndUrl(templateId, url);
+        }
+        return url;
+    }
 
+    @Override
+    @Transactional
+    public String deleteRecipient(String templateId, String url) {
+        if (recipientRepository.getFirstByTemplateIdAndUrl(templateId, url) == null){
+            return null;
+        } else {
+            recipientRepository.deleteByTemplateIdAndUrl(templateId, url);
+        }
+        return url;
     }
 
     //TODO обработать нпе и ошибку из форича
@@ -94,7 +130,7 @@ public class MyTemplateService implements TemplateService {
     @Override
     public void sendMessage(Report report) {
         Template template = templateRepository.findById(report.getTemplateId()).orElseThrow(NullPointerException::new);
-        Message message = Utils.makeMessage(template.getTemplate(), report.getVariables());
+        Message message = Utils.makeMessage(template.getTemplate(), report.getVariables(), template.getVarTypes());
         template.getRecipients().forEach(e -> {
             try {
                 sender.send(message, e.getUrl());

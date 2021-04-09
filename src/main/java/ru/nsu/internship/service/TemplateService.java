@@ -9,7 +9,8 @@ import java.io.IOException;
 @Service
 public interface TemplateService {
     void saveTemplate(TemplateParameters templateParameters);
-    void addRecipient(String templateId, String recipient);
-    void deleteRecipient(String templateId, String recipient);
+    TemplateParameters getTemplate(String templateId);
+    String addRecipient(String templateId, String recipient);
+    String deleteRecipient(String templateId, String recipient);
     void sendMessage(Report report) throws IOException;
 }

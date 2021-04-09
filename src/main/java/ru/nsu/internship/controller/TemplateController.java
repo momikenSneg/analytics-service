@@ -1,12 +1,7 @@
 package ru.nsu.internship.controller;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.stereotype.Repository;
 import org.springframework.web.bind.annotation.*;
-import retrofit2.converter.gson.GsonConverterFactory;
 import ru.nsu.internship.data.Report;
 import ru.nsu.internship.data.TemplateParameters;
 import ru.nsu.internship.models.Template;
@@ -44,5 +39,23 @@ public class TemplateController {
         System.out.println(report);
         service.sendMessage(report);
         return null;
+    }
+
+    @GetMapping("/get")
+    public TemplateParameters getTemplate(@RequestParam("templateId") String templateId) {
+        if (templateId == null)
+            throw new IllegalArgumentException();
+
+        return service.getTemplate(templateId);
+    }
+
+    @PatchMapping("/{id}/addRecipient")
+    public String addRecipient(@PathVariable("id") String templateId, @RequestParam("url") String url){
+        return service.addRecipient(templateId, url);
+    }
+
+    @PatchMapping("/{id}/deleteRecipient")
+    public String deleteRecipient(@PathVariable("id") String templateId, @RequestParam("url") String url){
+        return service.deleteRecipient(templateId, url);
     }
 }
