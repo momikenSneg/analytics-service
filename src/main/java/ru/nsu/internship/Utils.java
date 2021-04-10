@@ -12,9 +12,9 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 public class Utils {
-    private static final String dateFormat = "dd/MM/yyyy";
+    private static final String dateFormat = "dd/mm/yyyy";
 
-    public static Message makeMessage(String template, Map<String, String> variables, List<VarType> types){
+    public static Message makeMessage(String template, Map<String, String> variables, List<VarType> types) {
 
         for (Map.Entry<String, String> var : variables.entrySet()) {
             VarType type = types.stream()
@@ -27,7 +27,7 @@ public class Utils {
                 if (checkType(var.getValue(), type.getType())){
                     template = template.replaceAll(Pattern.quote("$" + var.getKey() + "$"), var.getValue());
                 } else {
-                    //TODO Throw Exception
+                    throw new IllegalArgumentException();
                 }
             }
 
@@ -36,8 +36,7 @@ public class Utils {
         return new Message(template);
     }
 
-    //TODo исключения
-    private static boolean checkType(String var, String type){
+    private static boolean checkType(String var, String type) {
         try {
             switch (type){
                 case "int":
@@ -49,10 +48,12 @@ public class Utils {
                 case "time":
                     LocalTime.parse(var);
                     break;
-                //TODO бросать исключение что неподдерживаемый тип данных
+                case "double":
+                    Double.parseDouble(var);
+                    break;
                 default:
                     if (!type.equals("string"))
-                        return false;
+                        throw new IllegalArgumentException();
             }
         } catch (NumberFormatException | ParseException | DateTimeParseException e){
             return false;

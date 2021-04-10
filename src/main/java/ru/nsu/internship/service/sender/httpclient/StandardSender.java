@@ -6,6 +6,8 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import ru.nsu.internship.data.Message;
 import ru.nsu.internship.service.sender.MessageSender;
@@ -14,6 +16,7 @@ import java.io.IOException;
 
 @Component("standardSender")
 public class StandardSender implements MessageSender {
+    private static final Logger log = LoggerFactory.getLogger(StandardSender.class);
     @Override
     public void send(Message message, String url) throws IOException {
         CloseableHttpClient client = HttpClients.createDefault();
@@ -24,15 +27,14 @@ public class StandardSender implements MessageSender {
         httpPost.setHeader("Accept", "application/json");
         httpPost.setHeader("Content-type", "application/json");
 
-        //TODO логировать
         try (CloseableHttpResponse response = client.execute(httpPost)) {
             if (response.getStatusLine().getStatusCode() == 200){
-                System.out.println("Все крута");
+                log.info("Message " + message.getMessage() + " sent for " + url);
             } else {
-                System.out.println("Код плохой");
+                log.warn("Bad request when message " + message.getMessage() + " send for" + url);
             }
         } catch (IOException e){
-            System.out.println("Все плоха");
+            log.error("Message " + message.getMessage() + " sending failed for" + url);;
         }
     }
 }

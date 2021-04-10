@@ -1,13 +1,19 @@
 package ru.nsu.internship.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClientException;
 import ru.nsu.internship.Utils;
 import ru.nsu.internship.data.Message;
-import ru.nsu.internship.data.TemplateParameters;
 import ru.nsu.internship.data.Report;
+import ru.nsu.internship.data.Subscription;
+import ru.nsu.internship.data.TemplateParameters;
+import ru.nsu.internship.exceptions.NoRecipientsException;
 import ru.nsu.internship.models.Recipient;
 import ru.nsu.internship.models.Template;
 import ru.nsu.internship.models.VarType;
@@ -21,6 +27,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ScheduledFuture;
+import java.util.stream.Collectors;
 
 @Service
 @Qualifier("templateService")
@@ -30,21 +38,28 @@ public class MyTemplateService implements TemplateService {
     private final RecipientRepository recipientRepository;
     private final VarTypeRepository varTypeRepository;
     private final MessageSender sender;
+    private static final Logger log = LoggerFactory.getLogger(MyTemplateService.class);
+    private final ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+    private static final int POOL_SIZE = 2;
+    private final Map<Subscription, ScheduledFuture> subscribes = new HashMap<>();
+
 
     @Autowired
     public MyTemplateService(TemplateRepository templateRepository,
                              RecipientRepository recipientRepository,
                              VarTypeRepository varTypeRepository,
-                             @Qualifier("standardSender") MessageSender sender) {
+                             @Qualifier("springSender") MessageSender sender) {
         this.templateRepository = templateRepository;
         this.recipientRepository = recipientRepository;
         this.varTypeRepository = varTypeRepository;
         this.sender = sender;
+        scheduler.setPoolSize(POOL_SIZE);
+        scheduler.initialize();
     }
 
     @Override
     @Transactional
-    public void saveTemplate(TemplateParameters parameters) {
+    public Template saveTemplate(TemplateParameters parameters) {
 //        if (templateRepository.findById(parameters.getTemplateId()).isPresent()){
 //            Template template = templateRepository.findById(parameters.getTemplateId()).get();
 //            template.setTemplate(parameters.getTemplate());
@@ -81,6 +96,7 @@ public class MyTemplateService implements TemplateService {
             });
         }
         templateRepository.save(template);
+        return template;
     }
 
     @Override
@@ -125,19 +141,68 @@ public class MyTemplateService implements TemplateService {
         return url;
     }
 
-    //TODO обработать нпе и ошибку из форича
-    //TODO сообщать если некому отправить сообщение
     @Override
-    public void sendMessage(Report report) {
+    public Message sendMessage(Report report) throws NoRecipientsException {
         Template template = templateRepository.findById(report.getTemplateId()).orElseThrow(NullPointerException::new);
         Message message = Utils.makeMessage(template.getTemplate(), report.getVariables(), template.getVarTypes());
+        if (template.getRecipients() == null || template.getRecipients().size() == 0)
+            throw new NoRecipientsException();
         template.getRecipients().forEach(e -> {
             try {
                 sender.send(message, e.getUrl());
-            } catch (IOException exception) {
+            } catch (IOException | RestClientException exception) {
                 throw new RuntimeException(exception);
             }
         });
+        return message;
+    }
+
+    @Override
+    public Subscription subscribeOnMessage(Report report, long period) throws NoRecipientsException {
+        Template template = templateRepository.findById(report.getTemplateId()).orElseThrow(NullPointerException::new);
+        Message message = Utils.makeMessage(template.getTemplate(), report.getVariables(), template.getVarTypes());
+        if (template.getRecipients() == null || template.getRecipients().size() == 0)
+            throw new NoRecipientsException();
+        List<String> urls = template.getRecipients().stream().map(Recipient::getUrl).collect(Collectors.toList());
+        Subscription subscription = new Subscription(message.getMessage(), urls);
+        if (subscribes.get(subscription) != null){
+            return null;
+        }
+
+        MessageSenderTask task = new MessageSenderTask(message, urls);
+        ScheduledFuture future = scheduler.scheduleAtFixedRate(task, period);
+        subscribes.put(subscription, future);
+        return subscription;
+    }
+
+    @Override
+    public void unsubscribeOnMessage(Subscription subscription) throws NoRecipientsException {
+        ScheduledFuture future = subscribes.get(subscription);
+        if (future == null)
+            throw new NoRecipientsException();
+        future.cancel(false);
+    }
+
+    class MessageSenderTask implements Runnable {
+
+        private final Message message;
+        private final List<String> urls;
+
+        public MessageSenderTask(Message message, List<String> urls){
+            this.message = message;
+            this.urls = urls;
+        }
+
+        public void run() {
+            urls.forEach(e -> {
+                try {
+                    sender.send(message, e);
+                } catch (IOException | RestClientException exception) {
+                    log.error("Cannot send message for" + e);
+                }
+            });
+            log.info("One task end");
+        }
     }
 
 }

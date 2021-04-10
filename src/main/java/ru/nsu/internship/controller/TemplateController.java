@@ -1,9 +1,16 @@
 package ru.nsu.internship.controller;
 
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import ru.nsu.internship.data.Message;
 import ru.nsu.internship.data.Report;
+import ru.nsu.internship.data.Subscription;
 import ru.nsu.internship.data.TemplateParameters;
+import ru.nsu.internship.exceptions.NoRecipientsException;
+import ru.nsu.internship.exceptions.NoSuchTemplateException;
+import ru.nsu.internship.exceptions.SendFailedException;
 import ru.nsu.internship.models.Template;
 import ru.nsu.internship.service.TemplateService;
 
@@ -18,44 +25,81 @@ public class TemplateController {
         this.service = service;
     }
 
-
-    //TODO Можно ли не подать типы совсем и будет ли там тогда просто нал
-    //TODO Для тестирования подать налл подать пустой список и тд
     @PostMapping("/load")
-    public Template loadTemplate(@RequestBody TemplateParameters parameters){
+    public ResponseEntity<String> loadTemplate(@RequestBody TemplateParameters parameters){
         if (parameters == null || parameters.getTemplate() == null || parameters.getTemplateId() == null)
-            //TODO подумать над исключениями
-            throw new IllegalArgumentException();
-        service.saveTemplate(parameters);
-        return null;
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Wrong format of template");
+        try {
+            service.saveTemplate(parameters);
+        } catch (IllegalArgumentException e){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Illegal argument");
+        }
+        return ResponseEntity.status(HttpStatus.OK).body("Template created");
     }
 
-    //TODO обоаботать ошибки
     @PostMapping("/send")
-    public Template sendMessage(@RequestBody Report report) throws IOException {
+    public ResponseEntity<String> sendMessage(@RequestBody Report report) {
         if (report == null || report.getTemplateId() == null)
-            //TODO подумать над исключениями
-            throw new IllegalArgumentException();
-        System.out.println(report);
-        service.sendMessage(report);
-        return null;
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("No template id");
+        Message message;
+        try {
+            message = service.sendMessage(report);
+        } catch (RuntimeException | IOException e){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Sending message failed or wrong type provided");
+        } catch (NoRecipientsException e){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Template has no recipients");
+        }
+        return ResponseEntity.status(HttpStatus.OK).body(message.getMessage());
+    }
+
+    @PostMapping("/subscribe")
+    public ResponseEntity<Subscription> subscribeOnMessage(@RequestParam("time") Long time,
+                                                           @RequestBody Report report) throws NoRecipientsException {
+        if (report == null || report.getTemplateId() == null)
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        Subscription subscription = service.subscribeOnMessage(report, time);
+        if (subscription == null)
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        return ResponseEntity.status(HttpStatus.OK).body(subscription);
+    }
+
+    @PostMapping("/unsubscribe")
+    public ResponseEntity<String> unsubscribeMessage(@RequestBody Subscription subscription) {
+        if (subscription == null || subscription.getMessage() == null)
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Wrong format of subscription");
+        try {
+            service.unsubscribeOnMessage(subscription);
+        } catch (NoRecipientsException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("There is no such subscription");
+        }
+        return ResponseEntity.status(HttpStatus.OK).body("Subscription deleted");
     }
 
     @GetMapping("/get")
-    public TemplateParameters getTemplate(@RequestParam("templateId") String templateId) {
+    public ResponseEntity<TemplateParameters> getTemplate(@RequestParam("templateId") String templateId) throws NoSuchTemplateException {
         if (templateId == null)
-            throw new IllegalArgumentException();
-
-        return service.getTemplate(templateId);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        TemplateParameters parameters;
+        try {
+            parameters = service.getTemplate(templateId);
+        } catch (NullPointerException e){
+            throw new NoSuchTemplateException();
+        }
+        return ResponseEntity.status(HttpStatus.OK).body(parameters);
     }
 
     @PatchMapping("/{id}/addRecipient")
-    public String addRecipient(@PathVariable("id") String templateId, @RequestParam("url") String url){
-        return service.addRecipient(templateId, url);
+    public ResponseEntity<String> addRecipient(@PathVariable("id") String templateId, @RequestParam("url") String url){
+        if (service.addRecipient(templateId, url) == null)
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("The recipient's already subscribed");
+        return ResponseEntity.status(HttpStatus.OK).body(null);
     }
 
     @PatchMapping("/{id}/deleteRecipient")
-    public String deleteRecipient(@PathVariable("id") String templateId, @RequestParam("url") String url){
-        return service.deleteRecipient(templateId, url);
+    public ResponseEntity<String> deleteRecipient(@PathVariable("id") String templateId, @RequestParam("url") String url){
+        if (service.deleteRecipient(templateId, url) == null){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("No such recipient");
+        }
+        return ResponseEntity.status(HttpStatus.OK).body(null);
     }
 }

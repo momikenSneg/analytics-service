@@ -3,14 +3,14 @@ package ru.nsu.internship;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import ru.nsu.internship.data.Report;
+import ru.nsu.internship.data.Subscription;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Test {
-    public static void main(String args[]) {
+    public static void main(String[] args) {
 //        String name = "\\$";
 //        StringBuilder stringBuilder = new StringBuilder();
 //        stringBuilder.append("\\$");
@@ -68,17 +68,38 @@ public class Test {
 //
 //        input = input.replaceAll(Pattern.quote("$" + name + "$"), "Bunny");
 //        System.out.println(input);
-        Gson gson = new GsonBuilder().create();
-        Report report = new Report();
-        report.setTemplateId("Id");
-        Map<String, String> vars = new HashMap<>();
-        vars.put("place", "Room No.5");
-        vars.put("time", "11");
-        report.setVariables(vars);
 
-        String json = gson.toJson(report);
+        Map<Subscription, String> subs = new HashMap<>();
+        Subscription a = new Subscription();
+        Subscription b = new Subscription();
 
-        System.out.println(json);
+        List<String> urls1 = new ArrayList<>();
+        List<String> urls2 = new ArrayList<>();
+
+        urls1.add("https://httpbin.org/post");
+        urls1.add("https://postman-echo.com/post");
+        urls1.add("https://vk.com");
+
+        a.setMessage("The meeting will take place in the Room No.5 at 11 o'clock");
+        a.setUrls(urls1);
+
+        urls2.add("https://vk.com");
+        urls2.add("https://httpbin.org/post");
+        urls2.add("https://postman-echo.com/post");
+
+        b.setMessage("The meeting will take place in the Room No.5 at 11 o'clock");
+        b.setUrls(urls2);
+
+        subs.put(a, "NICHESE");
+
+        System.out.println(subs.get(b));
+
+
+        if (b.equals(a))
+            System.out.println("WOW");
+        else
+            System.out.println("PIZDA");
+
 
     }
 
