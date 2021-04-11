@@ -10,8 +10,6 @@ import ru.nsu.internship.data.Subscription;
 import ru.nsu.internship.data.TemplateParameters;
 import ru.nsu.internship.exceptions.NoRecipientsException;
 import ru.nsu.internship.exceptions.NoSuchTemplateException;
-import ru.nsu.internship.exceptions.SendFailedException;
-import ru.nsu.internship.models.Template;
 import ru.nsu.internship.service.TemplateService;
 
 import java.io.IOException;
@@ -76,14 +74,14 @@ public class TemplateController {
     }
 
     @GetMapping("/get")
-    public ResponseEntity<TemplateParameters> getTemplate(@RequestParam("templateId") String templateId) throws NoSuchTemplateException {
-        if (templateId == null)
+    public ResponseEntity<TemplateParameters> getTemplate(@RequestParam("templateId") String templateId) {
+        if (templateId == null || templateId.length() == 0)
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         TemplateParameters parameters;
         try {
             parameters = service.getTemplate(templateId);
         } catch (NullPointerException e){
-            throw new NoSuchTemplateException();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
         return ResponseEntity.status(HttpStatus.OK).body(parameters);
     }

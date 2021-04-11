@@ -5,8 +5,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Data
 @AllArgsConstructor
@@ -38,5 +38,23 @@ public class Template {
     public Template(String templateId, String template){
         this.template = template;
         this.templateId = templateId;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Template template1 = (Template) o;
+        template1.getRecipients().sort(Comparator.comparing(Recipient::getUrl));
+        template1.getVarTypes().sort(Comparator.comparing(VarType::getName));
+        return Objects.equals(templateId, template1.templateId) &&
+                Objects.equals(template, template1.template) &&
+                Objects.equals(recipients, template1.recipients) &&
+                Objects.equals(varTypes, template1.varTypes);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(templateId, template, recipients, varTypes);
     }
 }

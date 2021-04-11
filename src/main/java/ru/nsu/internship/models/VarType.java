@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
+import java.util.Objects;
 
 @Data
 @AllArgsConstructor
@@ -31,5 +32,24 @@ public class VarType {
         this.name = name;
         this.type = type;
         this.template = template;
+    }
+
+    public VarType(String name, String type){
+        this.name = name;
+        this.type = type;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        VarType type1 = (VarType) o;
+        return Objects.equals(name, type1.name) &&
+                Objects.equals(type, type1.type);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, type);
     }
 }

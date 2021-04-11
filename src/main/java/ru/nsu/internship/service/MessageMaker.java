@@ -1,4 +1,4 @@
-package ru.nsu.internship;
+package ru.nsu.internship.service;
 
 import ru.nsu.internship.data.Message;
 import ru.nsu.internship.models.VarType;
@@ -11,23 +11,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-public class Utils {
+public class MessageMaker {
     private static final String dateFormat = "dd/mm/yyyy";
 
-    public static Message makeMessage(String template, Map<String, String> variables, List<VarType> types) {
+    public static Message make(String template, Map<String, String> variables, Map<String, String> types) {
 
         for (Map.Entry<String, String> var : variables.entrySet()) {
-            VarType type = types.stream()
-                    .filter(varType -> var.getKey().equals(varType.getName()))
-                    .findAny()
-                    .orElse(null);
+            String type = null;
+            if (types != null)
+                type = types.get(var.getKey());
             if (type == null){
                 template = template.replaceAll(Pattern.quote("$" + var.getKey() + "$"), var.getValue());
             } else {
-                if (checkType(var.getValue(), type.getType())){
+                if (checkType(var.getValue(), type)){
                     template = template.replaceAll(Pattern.quote("$" + var.getKey() + "$"), var.getValue());
                 } else {
-                    throw new IllegalArgumentException();
+                    throw new IllegalArgumentException("Type does not match value");
                 }
             }
 
@@ -53,7 +52,7 @@ public class Utils {
                     break;
                 default:
                     if (!type.equals("string"))
-                        throw new IllegalArgumentException();
+                        throw new IllegalArgumentException("No such type");
             }
         } catch (NumberFormatException | ParseException | DateTimeParseException e){
             return false;

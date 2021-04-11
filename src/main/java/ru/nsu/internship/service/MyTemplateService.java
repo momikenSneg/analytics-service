@@ -8,7 +8,6 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClientException;
-import ru.nsu.internship.Utils;
 import ru.nsu.internship.data.Message;
 import ru.nsu.internship.data.Report;
 import ru.nsu.internship.data.Subscription;
@@ -40,7 +39,7 @@ public class MyTemplateService implements TemplateService {
     private final MessageSender sender;
     private static final Logger log = LoggerFactory.getLogger(MyTemplateService.class);
     private final ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
-    private static final int POOL_SIZE = 2;
+    private static final int POOL_SIZE = 4;
     private final Map<Subscription, ScheduledFuture> subscribes = new HashMap<>();
 
 
@@ -104,13 +103,9 @@ public class MyTemplateService implements TemplateService {
         Template template = templateRepository.findById(templateId).orElseThrow(NullPointerException::new);
         TemplateParameters templateParameters = new TemplateParameters();
         List<String> recipients = new ArrayList<>();
-        template.getRecipients().forEach(e -> {
-            recipients.add(e.getUrl());
-        });
+        template.getRecipients().forEach(e -> recipients.add(e.getUrl()));
         Map<String, String> types = new HashMap<>();
-        template.getVarTypes().forEach(e -> {
-            types.put(e.getName(), e.getType());
-        });
+        template.getVarTypes().forEach(e -> types.put(e.getName(), e.getType()));
         templateParameters.setTemplateId(templateId);
         templateParameters.setTemplate(template.getTemplate());
         templateParameters.setRecipients(recipients);
@@ -144,9 +139,9 @@ public class MyTemplateService implements TemplateService {
     @Override
     public Message sendMessage(Report report) throws NoRecipientsException {
         Template template = templateRepository.findById(report.getTemplateId()).orElseThrow(NullPointerException::new);
-        Message message = Utils.makeMessage(template.getTemplate(), report.getVariables(), template.getVarTypes());
         if (template.getRecipients() == null || template.getRecipients().size() == 0)
             throw new NoRecipientsException();
+        Message message = getMessage(template, report.getVariables());
         template.getRecipients().forEach(e -> {
             try {
                 sender.send(message, e.getUrl());
@@ -160,9 +155,9 @@ public class MyTemplateService implements TemplateService {
     @Override
     public Subscription subscribeOnMessage(Report report, long period) throws NoRecipientsException {
         Template template = templateRepository.findById(report.getTemplateId()).orElseThrow(NullPointerException::new);
-        Message message = Utils.makeMessage(template.getTemplate(), report.getVariables(), template.getVarTypes());
         if (template.getRecipients() == null || template.getRecipients().size() == 0)
             throw new NoRecipientsException();
+        Message message = getMessage(template, report.getVariables());
         List<String> urls = template.getRecipients().stream().map(Recipient::getUrl).collect(Collectors.toList());
         Subscription subscription = new Subscription(message.getMessage(), urls);
         if (subscribes.get(subscription) != null){
@@ -180,6 +175,7 @@ public class MyTemplateService implements TemplateService {
         ScheduledFuture future = subscribes.get(subscription);
         if (future == null)
             throw new NoRecipientsException();
+        subscribes.remove(subscription);
         future.cancel(false);
     }
 
@@ -203,6 +199,15 @@ public class MyTemplateService implements TemplateService {
             });
             log.info("One task end");
         }
+    }
+
+    private Message getMessage(Template template, Map<String, String> variables){
+        if (template.getVarTypes() == null || template.getVarTypes().size() == 0){
+            return MessageMaker.make(template.getTemplate(), variables, null);
+        }
+        Map<String, String> types = template.getVarTypes().stream()
+                .collect(Collectors.toMap(VarType::getName, VarType::getType));
+        return MessageMaker.make(template.getTemplate(), variables, types);
     }
 
 }
