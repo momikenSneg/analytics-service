@@ -9,6 +9,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import ru.nsu.internship.Main;
 import ru.nsu.internship.data.Message;
 import ru.nsu.internship.service.sender.MessageSender;
+import ru.nsu.internship.service.sender.spring.SpringSender;
 
 import java.io.IOException;
 
@@ -16,7 +17,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
-@SpringBootTest(classes = {Main.class})
+@SpringBootTest(classes = {SpringSender.class})
 public class SpringSendMessageTest {
     @MockBean
     private Logger log;

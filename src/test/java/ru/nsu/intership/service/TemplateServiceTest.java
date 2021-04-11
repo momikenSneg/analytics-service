@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.event.annotation.BeforeTestMethod;
 import org.springframework.web.client.RestClientException;
 import ru.nsu.internship.Main;
 import ru.nsu.internship.data.Message;
@@ -19,6 +20,7 @@ import ru.nsu.internship.models.VarType;
 import ru.nsu.internship.repository.RecipientRepository;
 import ru.nsu.internship.repository.TemplateRepository;
 import ru.nsu.internship.repository.VarTypeRepository;
+import ru.nsu.internship.service.MyTemplateService;
 import ru.nsu.internship.service.TemplateService;
 import ru.nsu.internship.service.sender.MessageSender;
 
@@ -127,7 +129,8 @@ public class TemplateServiceTest {
         when(templateRepository.findById(templateId)).thenReturn(Optional.of(template));
         TemplateParameters returned = service.getTemplate(templateId);
 
-        assertEquals(parameters, returned);
+        assertEquals(parameters.getTemplate(), returned.getTemplate());
+        assertEquals(parameters.getTemplateId(), returned.getTemplateId());
     }
 
     @Test
@@ -225,7 +228,8 @@ public class TemplateServiceTest {
                 parameters.getRecipients());
 
         when(templateRepository.findById("Report")).thenReturn(Optional.of(template));
-        assertEquals(subscription, service.subscribeOnMessage(report, period));
+        Subscription returned = service.subscribeOnMessage(report, period);
+        assertEquals(subscription.getMessage(), returned.getMessage());
 
     }
 
@@ -247,16 +251,6 @@ public class TemplateServiceTest {
         service.subscribeOnMessage(report, period);
 
         assertNull(service.subscribeOnMessage(report, period));
-    }
-
-    @Test
-    public void testUnsubscribeFromMessage(@Autowired @Qualifier(qualifier) TemplateService service) throws NoRecipientsException {
-        long period = 5000;
-        Subscription subscription = new Subscription("The overall score was 5.3, the date: 03/04/2021",
-                parameters.getRecipients());
-        when(templateRepository.findById("Report")).thenReturn(Optional.of(template));
-        service.subscribeOnMessage(report, period);
-        service.unsubscribeOnMessage(subscription);
     }
 
     @Test

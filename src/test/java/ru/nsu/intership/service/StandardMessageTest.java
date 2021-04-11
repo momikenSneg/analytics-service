@@ -6,18 +6,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import ru.nsu.internship.Main;
 import ru.nsu.internship.data.Message;
 import ru.nsu.internship.service.sender.MessageSender;
+import ru.nsu.internship.service.sender.httpclient.StandardSender;
 
 import java.io.IOException;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
-import static org.mockito.Mockito.times;
 
-@SpringBootTest(classes = {Main.class})
+@SpringBootTest(classes = {StandardSender.class})
 public class StandardMessageTest {
     @MockBean
     private Logger log;
